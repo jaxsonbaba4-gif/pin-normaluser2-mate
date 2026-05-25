@@ -1,7 +1,9 @@
 import os
-import re
+import threading
 import requests
+
 from flask import Flask
+
 from telegram import (
     Update,
     InlineKeyboardButton,
@@ -23,10 +25,11 @@ API = "https://normaluser2.vercel.app/api/pinterest?url="
 app = Flask(__name__)
 
 
+# UPTIME ROUTE
 @app.route("/")
 def home():
     return {
-        "status": "running",
+        "status": "online",
         "bot": "Pinterest Downloader",
         "developer": "@normaluser2"
     }
@@ -192,8 +195,9 @@ telegram_app.add_handler(
 )
 
 
-if __name__ == "__main__":
-
-    print("Bot Running 🚀")
-
+def run_bot():
     telegram_app.run_polling()
+
+
+# START BOT THREAD
+threading.Thread(target=run_bot).start()
