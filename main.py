@@ -19,17 +19,17 @@ from telegram.ext import (
     filters,
 )
 
-# =========================
+# =========================================
 # CONFIG
-# =========================
+# =========================================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 API = "https://normaluser2.vercel.app/api/pinterest?url="
 
-# =========================
-# FLASK SERVER
-# =========================
+# =========================================
+# FLASK WEB SERVER
+# =========================================
 
 web = Flask(__name__)
 
@@ -40,13 +40,14 @@ def home():
     return {
         "status": "online",
         "bot": "Pinterest Downloader",
-        "developer": "@normaluser2"
+        "developer": "@normaluser2",
+        "made_by": "Jaxson"
     }
 
 
-# =========================
-# UI
-# =========================
+# =========================================
+# START MESSAGE
+# =========================================
 
 START_TEXT = """
 ✨ *Pinterest Downloader*
@@ -55,10 +56,10 @@ Download Pinterest videos instantly in the highest available quality.
 
 ━━━━━━━━━━━━━━━━━━━
 
-⚡ Ultra Fast Processing  
-🎬 High Quality Media  
-📥 Instant Delivery  
-🔗 Secure Downloads  
+⚡ Ultra Fast Processing
+🎬 High Quality Media
+📥 Instant Delivery
+🔗 Secure Downloads
 
 ━━━━━━━━━━━━━━━━━━━
 
@@ -75,10 +76,14 @@ Please save your media immediately after downloading.
 
 ━━━━━━━━━━━━━━━━━━━
 
-👨‍💻 Developer: @normaluser2  
+👨‍💻 Developer: @normaluser2
 ❤️ Made by *Jaxson*
 """
 
+
+# =========================================
+# BUTTONS
+# =========================================
 
 def premium_buttons():
 
@@ -100,9 +105,9 @@ def premium_buttons():
     return InlineKeyboardMarkup(keyboard)
 
 
-# =========================
-# START COMMAND
-# =========================
+# =========================================
+# /START
+# =========================================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -114,15 +119,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-# =========================
-# HANDLE LINKS
-# =========================
+# =========================================
+# HANDLE MESSAGE
+# =========================================
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
 
-    # INVALID LINK
+    # CHECK LINK
     if "pin.it" not in text and "pinterest.com" not in text:
 
         await update.message.reply_text(
@@ -138,16 +143,16 @@ Please send a valid Pinterest URL.
 
     try:
 
-        # LOADING
+        # LOADING MESSAGE
         loading = await update.message.reply_text(
             """
 ✨ *Preparing Your Download*
 
 ━━━━━━━━━━━━━━━━━━━
 
-🔍 Analyzing Pinterest media  
-⚡ Fetching highest quality  
-📦 Preparing secure delivery  
+🔍 Analyzing Pinterest media
+⚡ Fetching highest quality
+📦 Preparing secure delivery
 
 ━━━━━━━━━━━━━━━━━━━
 
@@ -157,7 +162,10 @@ Please wait...
         )
 
         # API REQUEST
-        r = requests.get(API + text).json()
+        r = requests.get(
+            API + text,
+            timeout=30
+        ).json()
 
         # FAILED
         if not r.get("success"):
@@ -198,8 +206,8 @@ This Pinterest post may not contain downloadable video media.
 
 ━━━━━━━━━━━━━━━━━━━
 
-🎬 Highest Quality Video Delivered  
-⚡ Processed Successfully  
+🎬 Highest Quality Video Delivered
+⚡ Processed Successfully
 
 ━━━━━━━━━━━━━━━━━━━
 
@@ -209,7 +217,7 @@ Please save your media before it expires.
 
 ━━━━━━━━━━━━━━━━━━━
 
-👨‍💻 Developer: @normaluser2  
+👨‍💻 Developer: @normaluser2
 ❤️ Made by *Jaxson*
             """,
             parse_mode="Markdown",
@@ -232,9 +240,9 @@ Please save your media before it expires.
         )
 
 
-# =========================
-# TELEGRAM APP
-# =========================
+# =========================================
+# TELEGRAM BOT
+# =========================================
 
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
@@ -247,9 +255,9 @@ app.add_handler(
 )
 
 
-# =========================
-# BOT THREAD FIX
-# =========================
+# =========================================
+# RUN BOT
+# =========================================
 
 def run_bot():
 
@@ -258,17 +266,22 @@ def run_bot():
     asyncio.set_event_loop(loop)
 
     app.run_polling(
-        drop_pending_updates=True
+        drop_pending_updates=True,
+        close_loop=False,
+        stop_signals=None
     )
 
 
 # START BOT THREAD
-threading.Thread(target=run_bot).start()
+threading.Thread(
+    target=run_bot,
+    daemon=True
+).start()
 
 
-# =========================
-# START FLASK
-# =========================
+# =========================================
+# START WEB SERVER
+# =========================================
 
 if __name__ == "__main__":
 
@@ -277,4 +290,4 @@ if __name__ == "__main__":
     web.run(
         host="0.0.0.0",
         port=port
-               )
+        )
