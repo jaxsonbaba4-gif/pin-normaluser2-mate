@@ -1,4 +1,5 @@
 import os
+import asyncio
 import threading
 import requests
 
@@ -18,22 +19,34 @@ from telegram.ext import (
     filters,
 )
 
+# =========================
+# CONFIG
+# =========================
+
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 API = "https://normaluser2.vercel.app/api/pinterest?url="
 
-# FLASK APP
+# =========================
+# FLASK SERVER
+# =========================
+
 web = Flask(__name__)
 
 
 @web.route("/")
 def home():
+
     return {
         "status": "online",
         "bot": "Pinterest Downloader",
         "developer": "@normaluser2"
     }
 
+
+# =========================
+# UI
+# =========================
 
 START_TEXT = """
 ✨ *Pinterest Downloader*
@@ -45,10 +58,14 @@ Download Pinterest videos instantly in the highest available quality.
 ⚡ Ultra Fast Processing  
 🎬 High Quality Media  
 📥 Instant Delivery  
+🔗 Secure Downloads  
 
 ━━━━━━━━━━━━━━━━━━━
 
 📌 Send any Pinterest link to begin.
+
+Example:
+`https://pin.it/xxxxxxx`
 
 ━━━━━━━━━━━━━━━━━━━
 
@@ -83,6 +100,10 @@ def premium_buttons():
     return InlineKeyboardMarkup(keyboard)
 
 
+# =========================
+# START COMMAND
+# =========================
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
@@ -93,14 +114,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# =========================
+# HANDLE LINKS
+# =========================
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
 
+    # INVALID LINK
     if "pin.it" not in text and "pinterest.com" not in text:
 
         await update.message.reply_text(
-            "❌ Please send a valid Pinterest link.",
+            """
+❌ *Invalid Link*
+
+Please send a valid Pinterest URL.
+            """,
             parse_mode="Markdown"
         )
 
@@ -108,6 +138,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
 
+        # LOADING
         loading = await update.message.reply_text(
             """
 ✨ *Preparing Your Download*
@@ -125,26 +156,41 @@ Please wait...
             parse_mode="Markdown"
         )
 
+        # API REQUEST
         r = requests.get(API + text).json()
 
+        # FAILED
         if not r.get("success"):
 
             await loading.edit_text(
-                "❌ Failed to fetch media."
+                """
+❌ *Download Failed*
+
+Unable to process this Pinterest link.
+                """,
+                parse_mode="Markdown"
             )
 
             return
 
+        # VIDEO
         video = r.get("best_video")
 
+        # NO VIDEO
         if not video:
 
             await loading.edit_text(
-                "❌ No downloadable video found."
+                """
+❌ *No Video Found*
+
+This Pinterest post may not contain downloadable video media.
+                """,
+                parse_mode="Markdown"
             )
 
             return
 
+        # SEND VIDEO
         await update.message.reply_video(
             video=video,
             caption="""
@@ -153,6 +199,7 @@ Please wait...
 ━━━━━━━━━━━━━━━━━━━
 
 🎬 Highest Quality Video Delivered  
+⚡ Processed Successfully  
 
 ━━━━━━━━━━━━━━━━━━━
 
@@ -170,17 +217,25 @@ Please save your media before it expires.
             reply_markup=premium_buttons()
         )
 
+        # DELETE LOADING
         await loading.delete()
 
     except Exception as e:
 
         await update.message.reply_text(
-            f"❌ Error:\n`{str(e)}`",
+            f"""
+❌ *Unexpected Error*
+
+`{str(e)}`
+            """,
             parse_mode="Markdown"
         )
 
 
-# TELEGRAM BOT
+# =========================
+# TELEGRAM APP
+# =========================
+
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
 app.add_handler(
@@ -192,19 +247,29 @@ app.add_handler(
 )
 
 
-# RUN BOT
+# =========================
+# BOT THREAD FIX
+# =========================
+
 def run_bot():
 
+    loop = asyncio.new_event_loop()
+
+    asyncio.set_event_loop(loop)
+
     app.run_polling(
-        drop_pending_updates=True,
-        close_loop=False
+        drop_pending_updates=True
     )
 
 
+# START BOT THREAD
 threading.Thread(target=run_bot).start()
 
 
-# START WEB SERVER
+# =========================
+# START FLASK
+# =========================
+
 if __name__ == "__main__":
 
     port = int(os.environ.get("PORT", 10000))
@@ -212,4 +277,4 @@ if __name__ == "__main__":
     web.run(
         host="0.0.0.0",
         port=port
-        )
+               )
