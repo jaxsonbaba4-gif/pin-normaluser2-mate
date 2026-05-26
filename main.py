@@ -1,34 +1,28 @@
 import os
 import requests
 
-from flask import Flask, request
-
 from telegram import (
-    Bot,
     Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup
 )
 
 from telegram.ext import (
-    Application,
-    CommandHandler,
+    ApplicationBuilder,
     MessageHandler,
+    CommandHandler,
     ContextTypes,
     filters,
 )
 
+# BOT TOKEN
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
+# YOUR PINTEREST API
 API = "https://normaluser2.vercel.app/api/pinterest?url="
 
-app = Flask(__name__)
 
-bot = Bot(token=BOT_TOKEN)
-
-telegram_app = Application.builder().token(BOT_TOKEN).build()
-
-
+# START MESSAGE
 START_TEXT = """
 ✨ *Pinterest Downloader*
 
@@ -39,10 +33,14 @@ Download Pinterest videos instantly in the highest available quality.
 ⚡ Ultra Fast Processing  
 🎬 High Quality Media  
 📥 Instant Delivery  
+🔗 Secure Downloads  
 
 ━━━━━━━━━━━━━━━━━━━
 
 📌 Send any Pinterest link to begin.
+
+Example:
+`https://pin.it/xxxxxxx`
 
 ━━━━━━━━━━━━━━━━━━━
 
@@ -52,10 +50,12 @@ Please save your media immediately after downloading.
 
 ━━━━━━━━━━━━━━━━━━━
 
-❤️ Crafted by *Jaxson*
+👨‍💻 Developer: @normaluser2  
+❤️ Made by *Jaxson*
 """
 
 
+# BUTTONS
 def premium_buttons():
 
     keyboard = [
@@ -76,6 +76,7 @@ def premium_buttons():
     return InlineKeyboardMarkup(keyboard)
 
 
+# /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
@@ -86,14 +87,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# HANDLE PINTEREST LINKS
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
 
+    # INVALID LINK
     if "pin.it" not in text and "pinterest.com" not in text:
 
         await update.message.reply_text(
-            "❌ Please send a valid Pinterest link.",
+            """
+❌ *Invalid Link*
+
+Please send a valid Pinterest URL.
+            """,
             parse_mode="Markdown"
         )
 
@@ -101,6 +108,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
 
+        # LOADING MESSAGE
         loading = await update.message.reply_text(
             """
 ✨ *Preparing Your Download*
@@ -118,26 +126,41 @@ Please wait...
             parse_mode="Markdown"
         )
 
+        # API REQUEST
         r = requests.get(API + text).json()
 
+        # FAILED
         if not r.get("success"):
 
             await loading.edit_text(
-                "❌ Failed to fetch media."
+                """
+❌ *Download Failed*
+
+Unable to process this Pinterest link.
+                """,
+                parse_mode="Markdown"
             )
 
             return
 
+        # GET VIDEO
         video = r.get("best_video")
 
+        # NO VIDEO
         if not video:
 
             await loading.edit_text(
-                "❌ No downloadable video found."
+                """
+❌ *No Video Found*
+
+This Pinterest post may not contain downloadable video media.
+                """,
+                parse_mode="Markdown"
             )
 
             return
 
+        # SEND VIDEO
         await update.message.reply_video(
             video=video,
             caption="""
@@ -146,6 +169,7 @@ Please wait...
 ━━━━━━━━━━━━━━━━━━━
 
 🎬 Highest Quality Video Delivered  
+⚡ Processed Successfully  
 
 ━━━━━━━━━━━━━━━━━━━
 
@@ -163,41 +187,38 @@ Please save your media before it expires.
             reply_markup=premium_buttons()
         )
 
+        # DELETE LOADING
         await loading.delete()
 
     except Exception as e:
 
         await update.message.reply_text(
-            f"❌ Error:\n`{str(e)}`",
+            f"""
+❌ *Unexpected Error*
+
+`{str(e)}`
+            """,
             parse_mode="Markdown"
         )
 
 
-telegram_app.add_handler(
+# BUILD BOT
+app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+# HANDLERS
+app.add_handler(
     CommandHandler("start", start)
 )
 
-telegram_app.add_handler(
+app.add_handler(
     MessageHandler(filters.TEXT, handle_message)
 )
 
+# RUN BOT
+if __name__ == "__main__":
 
-@app.route("/", methods=["GET"])
-def home():
+    print("Pinterest Downloader Bot Running 🚀")
 
-    return {
-        "status": "online",
-        "developer": "@normaluser2"
-    }
-
-
-@app.route("/webhook", methods=["POST"])
-async def webhook():
-
-    data = request.get_json(force=True)
-
-    update = Update.de_json(data, bot)
-
-    await telegram_app.process_update(update)
-
-    return "ok"
+    app.run_polling(
+        drop_pending_updates=True
+)
