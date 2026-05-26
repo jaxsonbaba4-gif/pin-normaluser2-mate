@@ -1,10 +1,10 @@
 import os
-import threading
 import requests
 
-from flask import Flask
+from flask import Flask, request
 
 from telegram import (
+    Bot,
     Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup
@@ -12,8 +12,8 @@ from telegram import (
 
 from telegram.ext import (
     Application,
-    MessageHandler,
     CommandHandler,
+    MessageHandler,
     ContextTypes,
     filters,
 )
@@ -24,15 +24,9 @@ API = "https://normaluser2.vercel.app/api/pinterest?url="
 
 app = Flask(__name__)
 
+bot = Bot(token=BOT_TOKEN)
 
-# UPTIME ROUTE
-@app.route("/")
-def home():
-    return {
-        "status": "online",
-        "bot": "Pinterest Downloader",
-        "developer": "@normaluser2"
-    }
+telegram_app = Application.builder().token(BOT_TOKEN).build()
 
 
 START_TEXT = """
@@ -45,24 +39,20 @@ Download Pinterest videos instantly in the highest available quality.
 ⚡ Ultra Fast Processing  
 🎬 High Quality Media  
 📥 Instant Delivery  
-🔗 Clean & Secure Downloads  
 
 ━━━━━━━━━━━━━━━━━━━
 
 📌 Send any Pinterest link to begin.
 
-Example:
-`https://pin.it/xxxxxxx`
-
 ━━━━━━━━━━━━━━━━━━━
 
-⚠️ Downloaded videos are automatically removed after *10 minutes*.
+⚠️ Videos are automatically removed after *10 minutes*.
 
 Please save your media immediately after downloading.
 
 ━━━━━━━━━━━━━━━━━━━
 
-❤️ Crafted with precision by *Jaxson*
+❤️ Crafted by *Jaxson*
 """
 
 
@@ -119,7 +109,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 🔍 Analyzing Pinterest media  
 ⚡ Fetching highest quality  
-📦 Finalizing secure delivery  
+📦 Preparing secure delivery  
 
 ━━━━━━━━━━━━━━━━━━━
 
@@ -155,8 +145,7 @@ Please wait...
 
 ━━━━━━━━━━━━━━━━━━━
 
-🎬 Highest Quality Video Ready  
-⚡ Delivered Successfully  
+🎬 Highest Quality Video Delivered  
 
 ━━━━━━━━━━━━━━━━━━━
 
@@ -184,8 +173,6 @@ Please save your media before it expires.
         )
 
 
-telegram_app = Application.builder().token(BOT_TOKEN).build()
-
 telegram_app.add_handler(
     CommandHandler("start", start)
 )
@@ -195,9 +182,22 @@ telegram_app.add_handler(
 )
 
 
-def run_bot():
-    telegram_app.run_polling()
+@app.route("/", methods=["GET"])
+def home():
+
+    return {
+        "status": "online",
+        "developer": "@normaluser2"
+    }
 
 
-# START BOT THREAD
-threading.Thread(target=run_bot).start()
+@app.route("/webhook", methods=["POST"])
+async def webhook():
+
+    data = request.get_json(force=True)
+
+    update = Update.de_json(data, bot)
+
+    await telegram_app.process_update(update)
+
+    return "ok"
